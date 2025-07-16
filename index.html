@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🩺 A.R.M.O.R.</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: #101d2c;
+      color: #fff;
+      font-family: 'Roboto', Arial, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    header {
+      margin-top: 40px;
+      text-align: center;
+    }
+    h1 {
+      font-family: 'Orbitron', monospace;
+      color: #00e6e6;
+      font-size: 2.2rem;
+      letter-spacing: 2px;
+      margin-bottom: 0.2em;
+      text-shadow: 0 0 10px #00e6e6, 0 0 20px #00e6e6;
+    }
+    .subtitle {
+      color: #00ff99;
+      font-size: 1.1rem;
+      margin-bottom: 1.5em;
+      font-style: italic;
+    }
+    .camera-container {
+      background: rgba(0,230,230,0.08);
+      border: 2px solid #00e6e6;
+      border-radius: 18px;
+      box-shadow: 0 0 30px #00e6e6a0;
+      padding: 24px 24px 16px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 2em;
+      position: relative;
+    }
+    video, canvas {
+      border-radius: 12px;
+      width: 400px;
+      height: 300px;
+      background: #222f3e;
+      box-shadow: 0 0 16px #00e6e6a0;
+      object-fit: cover;
+    }
+    .scan-btn {
+      margin-top: 18px;
+      background: linear-gradient(90deg, #00e6e6 0%, #00ff99 100%);
+      color: #101d2c;
+      font-family: 'Orbitron', monospace;
+      font-size: 1.3rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7em 2.5em;
+      cursor: pointer;
+      box-shadow: 0 0 10px #00e6e6a0;
+      transition: background 0.2s, color 0.2s;
+      letter-spacing: 1px;
+    }
+    .scan-btn:hover {
+      background: linear-gradient(90deg, #00b8b8 0%, #00ff99 100%);
+      color: #fff;
+    }
+    .scan-effect {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 2;
+    }
+    .diagnosis {
+      margin-top: 2em;
+      font-size: 1.3rem;
+      color: #00ff99;
+      font-family: 'Orbitron', monospace;
+      text-align: center;
+      text-shadow: 0 0 8px #00ff99a0;
+      animation: fadeIn 1s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .footer {
+      margin-top: 3em;
+      color: #888;
+      font-size: 0.95em;
+      text-align: center;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🩺 A.R.M.O.R.</h1>
+  </header>
+  <div class="camera-container">
+    <video id="video" autoplay playsinline></video>
+    <canvas id="photo" style="display:none;"></canvas>
+    <canvas id="effect" class="scan-effect" width="400" height="300" style="display:none;"></canvas>
+    <button class="scan-btn" id="scanBtn">SCAN</button>
+  </div>
+  <div class="diagnosis" id="diagnosis"></div>
+  <div class="supplies" id="supplies" style="display:none;"></div>
+  <div class="footer">&copy; 2025 A.R.M.O.R. Prototype.</div>
+  <script>
+    const diagnoses = [
+      "Possible broken limb with various cuts and bruises along with unstable vitals.",
+    ];
+    const suppliesList = [
+      "Water",
+      "Protein Food",
+      "First Aid"
+    ];
+    const video = document.getElementById('video');
+    const photo = document.getElementById('photo');
+    const effect = document.getElementById('effect');
+    const scanBtn = document.getElementById('scanBtn');
+    const diagnosisDiv = document.getElementById('diagnosis');
+    const suppliesDiv = document.getElementById('supplies');
+    let stream = null;
+
+    // Start webcam
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+      } catch (err) {
+        alert('Camera access denied or not available.');
+      }
+    }
+    startCamera();
+
+    // Apply heat vision effect to image data
+    function applyHeatVision(imageData) {
+      // Simple gradient: blue (cold) -> green -> yellow -> red (hot)
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        // Get brightness (grayscale)
+        const r = imageData.data[i];
+        const g = imageData.data[i+1];
+        const b = imageData.data[i+2];
+        const brightness = 0.299*r + 0.587*g + 0.114*b;
+        // Map brightness to color
+        let heatR = 0, heatG = 0, heatB = 0;
+        if (brightness < 64) { // blue to green
+          heatR = 0;
+          heatG = Math.round(4*brightness);
+          heatB = 255;
+        } else if (brightness < 128) { // green to yellow
+          heatR = Math.round(4*(brightness-64));
+          heatG = 255;
+          heatB = 255 - Math.round(4*(brightness-64));
+        } else if (brightness < 192) { // yellow to orange
+          heatR = 255;
+          heatG = 255 - Math.round(4*(brightness-128));
+          heatB = 0;
+        } else { // orange to red
+          heatR = 255;
+          heatG = Math.max(0, 127 - Math.round(2*(brightness-192)));
+          heatB = 0;
+        }
+        imageData.data[i] = heatR;
+        imageData.data[i+1] = heatG;
+        imageData.data[i+2] = heatB;
+      }
+      return imageData;
+    }
+
+    // Scan button click
+    scanBtn.onclick = async function() {
+      diagnosisDiv.textContent = '';
+      suppliesDiv.style.display = 'none';
+      // Take photo
+      photo.width = video.videoWidth;
+      photo.height = video.videoHeight;
+      const ctx = photo.getContext('2d');
+      ctx.drawImage(video, 0, 0, photo.width, photo.height);
+      // Apply heat vision effect to photo
+      let imageData = ctx.getImageData(0, 0, photo.width, photo.height);
+      imageData = applyHeatVision(imageData);
+      ctx.putImageData(imageData, 0, 0);
+      video.style.display = 'none';
+      photo.style.display = 'block';
+      effect.style.display = 'block';
+      scanBtn.disabled = true;
+      scanBtn.textContent = 'SCANNING...';
+      // Animate scan effect
+      await runScanEffect();
+      // Show diagnosis
+      const diagnosis = diagnoses[Math.floor(Math.random() * diagnoses.length)];
+      diagnosisDiv.textContent = `Diagnosis: ${diagnosis}`;
+      // Show supplies needed
+      suppliesDiv.innerHTML = `<div style="margin-top:1.5em;text-align:center;"><span style="color:#00e6e6;font-family:'Orbitron',monospace;font-size:1.1em;font-weight:bold;letter-spacing:1px;">Supplies Needed</span><ul style='list-style:none;padding:0;margin:0.7em 0 0 0;'>${suppliesList.map(item => `<li style='margin:0.4em 0;color:#fff;background:rgba(0,230,230,0.10);border-radius:6px;padding:0.4em 1.2em;display:inline-block;box-shadow:0 0 8px #00e6e6a0;'>${item}</li>`).join('')}</ul></div>`;
+      suppliesDiv.style.display = 'block';
+      scanBtn.textContent = 'SCAN AGAIN';
+      scanBtn.disabled = false;
+      video.style.display = 'block';
+      photo.style.display = 'none';
+      effect.style.display = 'none';
+    };
+
+    // Scan effect animation
+    function runScanEffect() {
+      return new Promise(resolve => {
+        const ctx = effect.getContext('2d');
+        ctx.clearRect(0, 0, effect.width, effect.height);
+        // Draw grid
+        ctx.strokeStyle = 'rgba(0,230,230,0.3)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= effect.width; x += 40) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, effect.height);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= effect.height; y += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(effect.width, y);
+          ctx.stroke();
+        }
+        // Animate scanline with heat vision effect
+        let scanY = 0;
+        const photoCtx = photo.getContext('2d');
+        function animate() {
+          ctx.clearRect(0, 0, effect.width, effect.height);
+          // Redraw grid
+          ctx.strokeStyle = 'rgba(0,230,230,0.3)';
+          for (let x = 0; x <= effect.width; x += 40) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, effect.height);
+            ctx.stroke();
+          }
+          for (let y = 0; y <= effect.height; y += 40) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(effect.width, y);
+            ctx.stroke();
+          }
+          // Draw heat vision photo under scanline
+          ctx.save();
+          ctx.globalAlpha = 0.7;
+          ctx.drawImage(photo, 0, 0, effect.width, effect.height);
+          ctx.restore();
+          // Scanline
+          ctx.save();
+          ctx.globalAlpha = 0.7;
+          ctx.fillStyle = 'rgba(0,255,180,0.25)';
+          ctx.fillRect(0, scanY, effect.width, 18);
+          ctx.restore();
+          ctx.save();
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = '#00ff99';
+          ctx.shadowColor = '#00ff99';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.moveTo(0, scanY + 9);
+          ctx.lineTo(effect.width, scanY + 9);
+          ctx.stroke();
+          ctx.restore();
+          scanY += 8;
+          if (scanY < effect.height) {
+            requestAnimationFrame(animate);
+          } else {
+            setTimeout(resolve, 400);
+          }
+        }
+        animate();
+      });
+    }
+  </script>
+</body>
+</html> 
